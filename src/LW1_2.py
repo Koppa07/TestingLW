@@ -36,7 +36,7 @@ def function():
 
     x = read_int("")  # 26
     y = read_int("")  # 29
-    s = 0  # 32
+    s = 1  # 32
     while x != 0 and y != 0:  # 33
         x -= 1  # 34
         y -= 1  # 35

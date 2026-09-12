@@ -11,7 +11,6 @@ debug_logger = logging.getLogger("Debugger")  # Окно отладки (FN ша
 trace_logger = logging.getLogger("TraceLogger")  # Окно трассировщика (LN шаг)
 
 
-# Интегрируемая функция (пример: f(x) = ln(1/x))
 def f(x: float) -> float:
     if x <= 0:
         raise ValueError(f"Точка x={x} выходит за область определения функции ln(1/x)")
@@ -19,7 +18,7 @@ def f(x: float) -> float:
 
 
 def midpoint_rectangle_method(a: float, b: float, n: int) -> float:
-    # Обобщенная формула прямоугольников (по средним точкам)
+    # Обобщенная формула прямоугольников
     h = (b - a) / n
     total_sum = 0.0
 
