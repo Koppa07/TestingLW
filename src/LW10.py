@@ -2,138 +2,96 @@ class Graph:
     def __init__(self, reader=None, writer=None):
         self.reader = reader
         self.writer = writer
-        self.adjacency_matrix = []
-        self.vertices = []
+        self.vertices = set()
+        self.matrix = []
+        self.vertex_to_index = dict()
+        self.n = 0
 
     def load_from_file(self, filename):
         edges = self.reader.read(filename)
         self.load_from_edges(edges)
 
-    def save_to_file(self, filename):
-        incidence_matrix = self.to_incidence_matrix()
-        self.writer.write(filename, incidence_matrix)
-
     def load_from_edges(self, edges):
+        self.vertices = set()
+        self.matrix = []
+        self.n = 0
+        self.vertex_to_index = {}
+        
         if not edges:
-            self.adjacency_matrix = []
-            self.vertices = []
+            self.matrix = []
+            self.vertices = set()
             return
 
-        vertices = set()
+        for u, v in edges:
+            self.vertices.add(u)
+            self.vertices.add(v)
 
-        for start, end in edges:
-            vertices.add(start)
-            vertices.add(end)
+        self.vertices = sorted(self.vertices)
 
-        self.vertices = sorted(vertices)
+        self.vertex_to_index = {vertex: index for index, vertex in enumerate(self.vertices)}
 
-        vertex_index = {vertex: index for index, vertex in enumerate(self.vertices)}
+        self.n = len(self.vertices)
 
-        size = len(self.vertices)
+        self.matrix = [[0]*self.n for _ in range(self.n)]
 
-        self.adjacency_matrix = [[0 for _ in range(size)] for _ in range(size)]
+        for u, v in edges:
+            i = self.vertex_to_index[u]
+            j = self.vertex_to_index[v]
 
-        for start, end in edges:
-            i = vertex_index[start]
-            j = vertex_index[end]
+            self.matrix[i][j] = 1
+            self.matrix[j][i] = 1
 
-            self.adjacency_matrix[i][j] = 1
-            self.adjacency_matrix[j][i] = 1
+    def save_to_file(self,filename):
+        matrix = self.get_adjacency_matrix()
+        self.writer.write(filename, matrix)
 
     def get_adjacency_matrix(self):
-        return self.adjacency_matrix
+        return self.matrix
 
-    def bfs(self, start_vertex=0):
-        if not self.adjacency_matrix:
-            return []
+    def depth_first_search(self, start):
+        if start not in self.vertex_to_index:
+            raise ValueError(f"Вершина {start} отсутствует в графе")
 
-        if start_vertex < 0 or start_vertex >= len(self.adjacency_matrix):
-            raise ValueError("Некорректный номер начальной вершины")
-
-        visited = [False] * len(self.adjacency_matrix)
-        queue = [start_vertex]
+        visited = set()
         result = []
 
-        visited[start_vertex] = True
-
-        while queue:
-            vertex = queue.pop(0)
+        def dfs(vertex):
+            visited.add(vertex)
             result.append(vertex)
 
-            for neighbour, connected in enumerate(self.adjacency_matrix[vertex]):
-                if connected and not visited[neighbour]:
-                    visited[neighbour] = True
-                    queue.append(neighbour)
+            index = self.vertex_to_index[vertex]
 
+            for j in range(self.n):
+                if self.matrix[index][j] == 1:
+                    neighbor = self.vertices[j]
+                    if neighbor not in visited:
+                        dfs(neighbor)
+
+        dfs(start)
+        
         return result
 
-    def shortest_path(self, start, end):
-        if not self.adjacency_matrix:
-            return None
+    def get_adjacent_vertices(self, vertex):
+        if vertex not in self.vertex_to_index:
+            raise ValueError(f"Вершина {vertex} отсутствует в графе")
 
-        if start not in self.vertices:
-            raise ValueError("Начальная вершина отсутствует в графе")
+        adjacent = []
+        index = self.vertex_to_index[vertex]
 
-        if end not in self.vertices:
-            raise ValueError("Конечная вершина отсутствует в графе")
+        for j in range(self.n):
+            if self.matrix[index][j] ==1:
+                adjacent.append(self.vertices[j])
 
-        start_index = self.vertices.index(start)
-        end_index = self.vertices.index(end)
+        return adjacent
 
-        size = len(self.vertices)
+    def print_matrix(self):
+        print("Матрица смежности:")
 
-        queue = [start_index]
+        print("   ", *self.vertices)
 
-        visited = [False] * size
-        previous = [None] * size
+        for i, row in enumerate(self.matrix):
+            print(self.vertices[i], row)
 
-        visited[start_index] = True
-
-        while queue:
-            current = queue.pop(0)
-
-            if current == end_index:
-                break
-
-            for neighbour, connected in enumerate(self.adjacency_matrix[current]):
-                if connected and not visited[neighbour]:
-                    visited[neighbour] = True
-                    previous[neighbour] = current
-                    queue.append(neighbour)
-
-        if not visited[end_index]:
-            return None
-
-        path = []
-        current = end_index
-
-        while current is not None:
-            path.append(self.vertices[current])
-            current = previous[current]
-
-        path.reverse()
-
-        return path
-
-    def to_incidence_matrix(self):
-        if not self.adjacency_matrix:
-            return []
-
-        edges = []
-        size = len(self.adjacency_matrix)
-
-        for i in range(size):
-            for j in range(i + 1, size):
-                if self.adjacency_matrix[i][j] == 1:
-                    edges.append((i, j))
-
-        incidence_matrix = [[0 for _ in range(len(edges))] for _ in range(size)]
-
-        for edge_index, (start, end) in enumerate(edges):
-            incidence_matrix[start][edge_index] = 1
-            incidence_matrix[end][edge_index] = 1
-
-        return incidence_matrix
 
 
 class GraphReader:
@@ -144,11 +102,16 @@ class GraphReader:
             for line in file:
                 line = line.strip()
 
-                if not line:
+                if not line or line.startswith("#"):
                     continue
 
-                start, end = map(int, line.split())
-                edges.append((start, end))
+                parts = line.split()
+
+                if len(parts) != 2:
+                    raise ValueError(f"Некорректная строка в файле: {line}")
+
+                u,v = map(int, parts)
+                edges.append((u,v))
 
         return edges
 
@@ -158,3 +121,26 @@ class GraphWriter:
         with open(filename, "w", encoding="utf-8") as file:
             for row in matrix:
                 file.write(" ".join(map(str, row)) + "\n")
+
+def main():
+    graph = Graph(GraphReader, GraphWriter)
+
+    graph.load_from_file("input.txt")
+
+    graph.print_matrix()
+
+    vertex = int(input("Введите номер вершины: "))
+
+    try:
+        adjacent = graph.get_adjacent_vertices(vertex)
+        print(f"Вершины, смежные с вершиной {vertex}: {adjacent}")
+
+        traversal = graph.depth_first_search(vertex)
+        print(f"Обход в глубину из вершины {vertex}: {traversal}")
+    except ValueError as error:
+        print(error)
+
+    graph.save_to_file("output.txt")
+
+if __name__ == "__main__":
+    main()
