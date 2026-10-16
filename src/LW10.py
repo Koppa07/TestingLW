@@ -121,26 +121,3 @@ class GraphWriter:
         with open(filename, "w", encoding="utf-8") as file:
             for row in matrix:
                 file.write(" ".join(map(str, row)) + "\n")
-
-def main():
-    graph = Graph(GraphReader, GraphWriter)
-
-    graph.load_from_file("input.txt")
-
-    graph.print_matrix()
-
-    vertex = int(input("Введите номер вершины: "))
-
-    try:
-        adjacent = graph.get_adjacent_vertices(vertex)
-        print(f"Вершины, смежные с вершиной {vertex}: {adjacent}")
-
-        traversal = graph.depth_first_search(vertex)
-        print(f"Обход в глубину из вершины {vertex}: {traversal}")
-    except ValueError as error:
-        print(error)
-
-    graph.save_to_file("output.txt")
-
-if __name__ == "__main__":
-    main()
